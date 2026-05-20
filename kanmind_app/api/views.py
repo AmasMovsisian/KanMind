@@ -1,7 +1,151 @@
-from django.shortcuts import render
-from django.http import JsonResponse
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import models
+from kanmind_app.models import Board, Task, Comment
+from kanmind_app.api.serializers import (
+    BoardSerializer,
+    TaskSerializer,
+    CommentSerializer
+)
+from kanmind_app.api.permissions import IsAuthenticatedOr401
 
-def startKanmind(request):
-    return JsonResponse({
-        "message" : "kanmind hat funktioniert"
-    })
+
+class BoardListCreateView(APIView):
+    permission_classes = [IsAuthenticatedOr401]
+
+    def get(self, request):
+        boards = Board.objects.filter(members=request.user)
+        return Response(BoardSerializer(boards, many=True).data)
+
+    def post(self, request):
+        serializer = BoardSerializer(data=request.data)
+
+        if serializer.is_valid():
+            board = serializer.save(owner=request.user)
+            board.members.add(request.user)
+            return Response(BoardSerializer(board).data, status=201)
+
+        return Response(serializer.errors, status=400)
+
+
+class BoardDetailView(APIView):
+    permission_classes = [IsAuthenticatedOr401]
+
+    def get_object(self, pk):
+        return Board.objects.get(pk=pk)
+
+    def get(self, request, pk):
+        board = self.get_object(pk)
+
+        if request.user not in board.members.all():
+            return Response({"detail": "Forbidden"}, status=403)
+
+        return Response(BoardSerializer(board).data)
+
+    def patch(self, request, pk):
+        board = self.get_object(pk)
+
+        if request.user not in board.members.all():
+            return Response({"detail": "Forbidden"}, status=403)
+
+        serializer = BoardSerializer(board, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+
+        return Response(serializer.errors, status=400)
+
+    def delete(self, request, pk):
+        board = self.get_object(pk)
+
+        if board.owner != request.user:
+            return Response({"detail": "Only owner can delete"}, status=403)
+
+        board.delete()
+        return Response(status=204)
+
+
+class TasksAssignedToMeView(APIView):
+    permission_classes = [IsAuthenticatedOr401]
+
+    def get(self, request):
+        tasks = Task.objects.filter(assignee=request.user)
+        return Response(TaskSerializer(tasks, many=True).data)
+
+
+class TasksReviewingView(APIView):
+    permission_classes = [IsAuthenticatedOr401]
+
+    def get(self, request):
+        tasks = Task.objects.filter(reviewer=request.user)
+        return Response(TaskSerializer(tasks, many=True).data)
+
+
+class TaskCreateView(APIView):
+    permission_classes = [IsAuthenticatedOr401]
+
+    def post(self, request):
+        serializer = TaskSerializer(data=request.data)
+
+        if serializer.is_valid():
+            task = serializer.save(created_by=request.user)
+            return Response(TaskSerializer(task).data, status=201)
+
+        return Response(serializer.errors, status=400)
+
+
+class TaskDetailView(APIView):
+    permission_classes = [IsAuthenticatedOr401]
+
+    def get_object(self, pk):
+        return Task.objects.get(pk=pk)
+
+    def patch(self, request, pk):
+        task = self.get_object(pk)
+
+        serializer = TaskSerializer(task, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+
+        return Response(serializer.errors, status=400)
+
+    def delete(self, request, pk):
+        task = self.get_object(pk)
+
+        if task.created_by != request.user and task.board.owner != request.user:
+            return Response({"detail": "Forbidden"}, status=403)
+
+        task.delete()
+        return Response(status=204)
+
+
+class CommentView(APIView):
+    permission_classes = [IsAuthenticatedOr401]
+
+    def get(self, request, task_id):
+        task = Task.objects.get(id=task_id)
+
+        comments = task.comments.all()
+
+        return Response(
+            CommentSerializer(comments, many=True).data,
+            status=200
+        )
+
+    def post(self, request, task_id):
+        task = Task.objects.get(id=task_id)
+
+        serializer = CommentSerializer(data=request.data)
+
+        if serializer.is_valid():
+            comment = serializer.save(
+                task=task,
+                author=request.user
+            )
+            return Response(CommentSerializer(comment).data, status=201)
+
+        return Response(serializer.errors, status=400)
