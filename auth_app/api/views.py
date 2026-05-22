@@ -89,7 +89,6 @@ class LoginView(APIView):
         )
 
 
-
 class EmailCheckView(APIView):
     permission_classes = [IsAuthenticated]
 

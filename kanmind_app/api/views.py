@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from django.shortcuts import get_object_or_404
 from kanmind_app.models import Board, Task, Comment
 from kanmind_app.api.serializers import (
     BoardSerializer,
@@ -31,11 +31,8 @@ class BoardListCreateView(APIView):
 class BoardDetailView(APIView):
     permission_classes = [IsAuthenticatedOr401]
 
-    def get_object(self, pk):
-        return Board.objects.get(pk=pk)
-
     def get(self, request, pk):
-        board = self.get_object(pk)
+        board = get_object_or_404(Board, pk=pk)
 
         if request.user not in board.members.all():
             return Response({"detail": "Forbidden"}, status=403)
@@ -43,7 +40,7 @@ class BoardDetailView(APIView):
         return Response(BoardSerializer(board).data)
 
     def patch(self, request, pk):
-        board = self.get_object(pk)
+        board = get_object_or_404(Board, pk=pk)
 
         if request.user not in board.members.all():
             return Response({"detail": "Forbidden"}, status=403)
@@ -57,7 +54,7 @@ class BoardDetailView(APIView):
         return Response(serializer.errors, status=400)
 
     def delete(self, request, pk):
-        board = self.get_object(pk)
+        board = get_object_or_404(Board, pk=pk)
 
         if board.owner != request.user:
             return Response({"detail": "Only owner can delete"}, status=403)
@@ -98,11 +95,12 @@ class TaskCreateView(APIView):
 class TaskDetailView(APIView):
     permission_classes = [IsAuthenticatedOr401]
 
-    def get_object(self, pk):
-        return Task.objects.get(pk=pk)
+    def get(self, request, pk):
+        task = get_object_or_404(Task, pk=pk)
+        return Response(TaskSerializer(task).data)
 
     def patch(self, request, pk):
-        task = self.get_object(pk)
+        task = get_object_or_404(Task, pk=pk)
 
         serializer = TaskSerializer(task, data=request.data, partial=True)
 
@@ -113,7 +111,7 @@ class TaskDetailView(APIView):
         return Response(serializer.errors, status=400)
 
     def delete(self, request, pk):
-        task = self.get_object(pk)
+        task = get_object_or_404(Task, pk=pk)
 
         if task.created_by != request.user and task.board.owner != request.user:
             return Response({"detail": "Forbidden"}, status=403)
@@ -126,12 +124,12 @@ class CommentView(APIView):
     permission_classes = [IsAuthenticatedOr401]
 
     def get(self, request, task_id):
-        task = Task.objects.get(id=task_id)
+        task = get_object_or_404(Task, id=task_id)
         comments = task.comments.all()
         return Response(CommentSerializer(comments, many=True).data)
 
     def post(self, request, task_id):
-        task = Task.objects.get(id=task_id)
+        task = get_object_or_404(Task, id=task_id)
 
         serializer = CommentSerializer(data=request.data)
 
@@ -145,10 +143,7 @@ class CommentView(APIView):
         return Response(serializer.errors, status=400)
 
     def delete(self, request, task_id, comment_id):
-        try:
-            comment = Comment.objects.get(id=comment_id, task_id=task_id)
-        except Comment.DoesNotExist:
-            return Response({"detail": "Comment not found"}, status=404)
+        comment = get_object_or_404(Comment, id=comment_id, task_id=task_id)
 
         if comment.author != request.user:
             return Response({"detail": "Forbidden"}, status=403)
