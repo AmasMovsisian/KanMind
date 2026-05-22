@@ -1,7 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.db import models
 from kanmind_app.models import Board, Task, Comment
 from kanmind_app.api.serializers import (
     BoardSerializer,
@@ -128,13 +127,8 @@ class CommentView(APIView):
 
     def get(self, request, task_id):
         task = Task.objects.get(id=task_id)
-
         comments = task.comments.all()
-
-        return Response(
-            CommentSerializer(comments, many=True).data,
-            status=200
-        )
+        return Response(CommentSerializer(comments, many=True).data)
 
     def post(self, request, task_id):
         task = Task.objects.get(id=task_id)
@@ -149,3 +143,15 @@ class CommentView(APIView):
             return Response(CommentSerializer(comment).data, status=201)
 
         return Response(serializer.errors, status=400)
+
+    def delete(self, request, task_id, comment_id):
+        try:
+            comment = Comment.objects.get(id=comment_id, task_id=task_id)
+        except Comment.DoesNotExist:
+            return Response({"detail": "Comment not found"}, status=404)
+
+        if comment.author != request.user:
+            return Response({"detail": "Forbidden"}, status=403)
+
+        comment.delete()
+        return Response(status=204)
