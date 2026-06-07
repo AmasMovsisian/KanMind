@@ -4,6 +4,7 @@ from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny
+from django.core.validators import validate_email
 from .serializers import (
     RegistrationSerializer,
     LoginSerializer
@@ -118,3 +119,37 @@ class EmailCheckView(APIView):
                 {"error": "Email not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+class EmailCheckView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        email = request.query_params.get("email")
+
+        if not email:
+            return Response(
+                {"detail": "Email query parameter is required"},
+                status=400
+            )
+
+        try:
+            validate_email(email)
+        except Exception:
+            return Response(
+                {"detail": "Invalid email format"},
+                status=400
+            )
+
+        user = User.objects.filter(email=email).first()
+
+        if not user:
+            return Response(
+                {"detail": "Email not found"},
+                status=404
+            )
+
+        return Response({
+            "id": user.id,
+            "email": user.email,
+            "fullname": user.fullname
+        }, status=200)
