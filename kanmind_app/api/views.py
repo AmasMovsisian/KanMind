@@ -13,13 +13,9 @@ from kanmind_app.api.serializers import (
 from kanmind_app.api.permissions import IsAuthenticatedOr401
 
 
-
 class BoardListCreateView(APIView):
     """
-    API endpoint for listing and creating boards.
-
-    - GET: Returns all boards where the authenticated user is either the owner or a member.
-    - POST: Creates a new board and automatically assigns the requesting user as owner and member.
+    API endpoint for retrieving and creating boards.
     """
 
     permission_classes = [IsAuthenticatedOr401]
@@ -32,20 +28,22 @@ class BoardListCreateView(APIView):
 
     def post(self, request):
         serializer = BoardSerializer(data=request.data)
+
         if serializer.is_valid():
             board = serializer.save(owner=request.user)
             board.members.add(request.user)
-            return Response(BoardSerializer(board).data, status=201)
-        return Response(serializer.errors, status=400)
 
+            return Response(
+                BoardSerializer(board).data,
+                status=201
+            )
+
+        return Response(serializer.errors, status=400)
 
 
 class BoardDetailView(APIView):
     """
-    API endpoint for retrieving, updating, and deleting a single board.
-
-    Access is restricted to the board owner or members.
-    Only the owner is allowed to delete a board.
+    API endpoint for retrieving, updating and deleting a single board.
     """
 
     permission_classes = [IsAuthenticatedOr401]
@@ -58,32 +56,43 @@ class BoardDetailView(APIView):
 
     def get(self, request, pk):
         board = self.get_object(pk)
+
         if not self.check_access(board, request.user):
             return Response({"detail": "Forbidden"}, status=403)
+
         return Response(BoardDetailSerializer(board).data)
 
     def patch(self, request, pk):
         board = self.get_object(pk)
+
         if not self.check_access(board, request.user):
             return Response({"detail": "Forbidden"}, status=403)
-        serializer = BoardSerializer(board, data=request.data, partial=True)
+
+        serializer = BoardSerializer(
+            board,
+            data=request.data,
+            partial=True
+        )
+
         if serializer.is_valid():
             serializer.save()
             return Response(BoardDetailSerializer(board).data)
+
         return Response(serializer.errors, status=400)
 
     def delete(self, request, pk):
         board = self.get_object(pk)
+
         if board.owner != request.user:
             return Response({"detail": "Only owner can delete"}, status=403)
+
         board.delete()
         return Response(status=204)
 
 
-
 class TasksAssignedToMeView(APIView):
     """
-    API endpoint that returns all tasks assigned to the authenticated user.
+    API endpoint for retrieving tasks assigned to the current user.
     """
 
     permission_classes = [IsAuthenticatedOr401]
@@ -93,10 +102,9 @@ class TasksAssignedToMeView(APIView):
         return Response(TaskSerializer(tasks, many=True).data)
 
 
-
 class TasksReviewingView(APIView):
     """
-    API endpoint that returns all tasks where the authenticated user is the reviewer.
+    API endpoint for retrieving tasks the current user is reviewing.
     """
 
     permission_classes = [IsAuthenticatedOr401]
@@ -106,22 +114,26 @@ class TasksReviewingView(APIView):
         return Response(TaskSerializer(tasks, many=True).data)
 
 
-
 class TaskCreateView(APIView):
     """
-    API endpoint for creating a new task within a board.
-
-    The user must be a member or owner of the board.
-    Assignee and reviewer must also belong to the same board.
+    API endpoint for creating a task inside a board.
     """
 
     permission_classes = [IsAuthenticatedOr401]
 
     def post(self, request):
-        serializer = TaskSerializer(data=request.data, context={"request": request})
+        serializer = TaskSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+
         if serializer.is_valid():
             board = serializer.validated_data["board"]
-            if request.user != board.owner and request.user not in board.members.all():
+
+            if (
+                request.user != board.owner
+                and request.user not in board.members.all()
+            ):
                 return Response({"detail": "Forbidden"}, status=403)
 
             assignee = serializer.validated_data.get("assignee")
@@ -131,23 +143,27 @@ class TaskCreateView(APIView):
                 return user == board.owner or user in board.members.all()
 
             if assignee and not is_member(assignee):
-                return Response({"assignee": "Must be board member"}, status=400)
+                return Response(
+                    {"assignee": "Must be board member"},
+                    status=400
+                )
+
             if reviewer and not is_member(reviewer):
-                return Response({"reviewer": "Must be board member"}, status=400)
+                return Response(
+                    {"reviewer": "Must be board member"},
+                    status=400
+                )
 
             task = serializer.save(created_by=request.user)
+
             return Response(TaskSerializer(task).data, status=201)
 
         return Response(serializer.errors, status=400)
 
 
-
 class TaskDetailView(APIView):
     """
-    API endpoint for retrieving, updating, and deleting a task.
-
-    Access is restricted to board members.
-    Only the creator or board owner can delete a task.
+    API endpoint for retrieving, updating and deleting a task.
     """
 
     permission_classes = [IsAuthenticatedOr401]
@@ -161,17 +177,23 @@ class TaskDetailView(APIView):
 
     def get(self, request, pk):
         task = self.get_object(pk)
+
         if not self.check_access(task, request.user):
             return Response({"detail": "Forbidden"}, status=403)
+
         return Response(TaskSerializer(task).data)
 
     def patch(self, request, pk):
         task = self.get_object(pk)
+
         if not self.check_access(task, request.user):
             return Response({"detail": "Forbidden"}, status=403)
 
         if "board" in request.data:
-            return Response({"detail": "Board cannot be changed"}, status=400)
+            return Response(
+                {"detail": "Board cannot be changed"},
+                status=400
+            )
 
         serializer = TaskSerializer(
             task,
@@ -179,25 +201,29 @@ class TaskDetailView(APIView):
             partial=True,
             context={"request": request}
         )
+
         if serializer.is_valid():
             serializer.save()
             return Response(TaskSerializer(task).data)
+
         return Response(serializer.errors, status=400)
 
     def delete(self, request, pk):
         task = self.get_object(pk)
-        if task.created_by != request.user and task.board.owner != request.user:
+
+        if (
+            task.created_by != request.user
+            and task.board.owner != request.user
+        ):
             return Response({"detail": "Forbidden"}, status=403)
+
         task.delete()
         return Response(status=204)
-
 
 
 class CommentListCreateView(APIView):
     """
     API endpoint for listing and creating comments on a task.
-
-    Only board members are allowed to view or add comments.
     """
 
     permission_classes = [IsAuthenticatedOr401]
@@ -211,30 +237,36 @@ class CommentListCreateView(APIView):
 
     def get(self, request, task_id):
         task = self.get_task(task_id)
+
         if not self.check_access(task, request.user):
             return Response({"detail": "Forbidden"}, status=403)
+
         comments = task.comments.all().order_by("created_at")
+
         return Response(CommentSerializer(comments, many=True).data)
 
     def post(self, request, task_id):
         task = self.get_task(task_id)
+
         if not self.check_access(task, request.user):
             return Response({"detail": "Forbidden"}, status=403)
 
         serializer = CommentSerializer(data=request.data)
-        if serializer.is_valid():
-            comment = serializer.save(task=task, author=request.user)
-            return Response(CommentSerializer(comment).data, status=201)
-        return Response(serializer.errors, status=400)
 
+        if serializer.is_valid():
+            comment = serializer.save(
+                task=task,
+                author=request.user
+            )
+
+            return Response(CommentSerializer(comment).data, status=201)
+
+        return Response(serializer.errors, status=400)
 
 
 class CommentDetailView(APIView):
     """
-    API endpoint for retrieving and deleting a single comment on a task.
-
-    Only the comment author can delete a comment.
-    Access is restricted to board members.
+    API endpoint for retrieving and deleting a single comment.
     """
 
     permission_classes = [IsAuthenticatedOr401]
@@ -248,17 +280,32 @@ class CommentDetailView(APIView):
 
     def get(self, request, task_id, comment_id):
         task = self.get_task(task_id)
+
         if not self.check_access(task, request.user):
             return Response({"detail": "Forbidden"}, status=403)
-        comment = get_object_or_404(Comment, id=comment_id, task=task)
+
+        comment = get_object_or_404(
+            Comment,
+            id=comment_id,
+            task=task
+        )
+
         return Response(CommentSerializer(comment).data)
 
     def delete(self, request, task_id, comment_id):
         task = self.get_task(task_id)
+
         if not self.check_access(task, request.user):
             return Response({"detail": "Forbidden"}, status=403)
-        comment = get_object_or_404(Comment, id=comment_id, task=task)
+
+        comment = get_object_or_404(
+            Comment,
+            id=comment_id,
+            task=task
+        )
+
         if comment.author != request.user:
             return Response({"detail": "Forbidden"}, status=403)
+
         comment.delete()
         return Response(status=204)
