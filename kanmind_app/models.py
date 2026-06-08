@@ -1,10 +1,18 @@
 from django.db import models
 from django.conf import settings
 
+
 User = settings.AUTH_USER_MODEL
 
 
+
 class Board(models.Model):
+    """
+    Represents a project board that groups tasks and manages collaboration between users.
+    
+    A board is owned by a single user but can have multiple members who collaborate on tasks.
+    """
+
     title = models.CharField(max_length=255)
 
     owner = models.ForeignKey(
@@ -20,10 +28,21 @@ class Board(models.Model):
     )
 
     def __str__(self):
+        """
+        Returns a human-readable representation of the Board instance.
+        """
         return self.title
 
 
+
 class Task(models.Model):
+    """
+    Represents a task within a board.
+
+    Tasks contain metadata such as status, priority, assignees, and reviewers
+    to support workflow management within a collaborative board.
+    """
+
     STATUS_CHOICES = [
         ("to-do", "To Do"),
         ("in-progress", "In Progress"),
@@ -60,10 +79,21 @@ class Task(models.Model):
         User, on_delete=models.CASCADE, related_name="created_tasks")
 
     def __str__(self):
+        """
+        Returns a human-readable representation of the Task instance.
+        """
         return self.title
 
 
+
 class Comment(models.Model):
+    """
+    Represents a comment made by a user on a specific task.
+
+    Comments are used to facilitate communication and discussion
+    around task progress and requirements.
+    """
+
     task = models.ForeignKey(
         Task, on_delete=models.CASCADE, related_name="comments")
     author = models.ForeignKey(User, on_delete=models.CASCADE)

@@ -12,9 +12,9 @@ urlpatterns = [
     path("tasks/", views.TaskCreateView.as_view(), name="task-create"),
     path("tasks/<int:pk>/", views.TaskDetailView.as_view(), name="task-detail"),
 
-    path("tasks/<int:task_id>/comments/",
-         views.CommentView.as_view(), name="task-comments"),
 
+    path("tasks/<int:task_id>/comments/",
+         views.CommentListCreateView.as_view(), name="task-comments"),
     path("tasks/<int:task_id>/comments/<int:comment_id>/",
-         views.CommentView.as_view(), name="task-comment-delete"),
+         views.CommentDetailView.as_view(), name="task-comment-detail"),
 ]

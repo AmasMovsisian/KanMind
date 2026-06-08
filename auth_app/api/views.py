@@ -15,7 +15,14 @@ from rest_framework.permissions import IsAuthenticated
 User = get_user_model()
 
 
+
 class RegistrationView(APIView):
+    """
+    API endpoint for user registration.
+
+    Creates a new user account and returns an authentication token along with user details.
+    """
+
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -46,7 +53,14 @@ class RegistrationView(APIView):
         )
 
 
+
 class LoginView(APIView):
+    """
+    API endpoint for user authentication (login).
+
+    Validates credentials and returns an authentication token if successful.
+    """
+
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -90,7 +104,14 @@ class LoginView(APIView):
         )
 
 
+
 class EmailCheckView(APIView):
+    """
+    API endpoint for checking whether a user exists by email address.
+
+    Requires authentication and returns basic user information if found.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -120,7 +141,15 @@ class EmailCheckView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+
+
 class EmailCheckView(APIView):
+    """
+    API endpoint for validating and retrieving a user by email address.
+
+    Ensures the email format is valid and returns user data if the user exists.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
