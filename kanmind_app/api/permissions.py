@@ -3,21 +3,6 @@ from kanmind_app.models import Board
 
 
 
-class IsAuthenticatedOr401(BasePermission):
-    """
-    Permission class that allows access only to authenticated users.
-
-    Returns False (unauthorized) if the user is not logged in.
-    """
-
-    def has_permission(self, request, view):
-        """
-        Checks whether the user is authenticated.
-        """
-        return request.user and request.user.is_authenticated
-
-
-
 class IsBoardMember(BasePermission):
     """
     Permission class that restricts access to board members only.
