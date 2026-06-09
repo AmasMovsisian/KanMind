@@ -7,6 +7,7 @@ from kanmind_app.models import Board, Task, Comment
 from kanmind_app.api.serializers import (
     BoardSerializer,
     BoardDetailSerializer,
+    BoardUpdateSerializer,
     TaskSerializer,
     CommentSerializer
 )
@@ -18,7 +19,6 @@ class BoardListCreateView(APIView):
     API endpoint for retrieving and creating boards.
     """
 
-    permission_classes = [IsAuthenticatedOr401]
 
     def get(self, request):
         boards = Board.objects.filter(
@@ -28,16 +28,13 @@ class BoardListCreateView(APIView):
 
     def post(self, request):
         serializer = BoardSerializer(data=request.data)
-
         if serializer.is_valid():
             board = serializer.save(owner=request.user)
             board.members.add(request.user)
-
             return Response(
                 BoardSerializer(board).data,
                 status=201
             )
-
         return Response(serializer.errors, status=400)
 
 
@@ -56,10 +53,8 @@ class BoardDetailView(APIView):
 
     def get(self, request, pk):
         board = self.get_object(pk)
-
         if not self.check_access(board, request.user):
             return Response({"detail": "Forbidden"}, status=403)
-
         return Response(BoardDetailSerializer(board).data)
 
     def patch(self, request, pk):
@@ -67,7 +62,6 @@ class BoardDetailView(APIView):
 
         if not self.check_access(board, request.user):
             return Response({"detail": "Forbidden"}, status=403)
-
         serializer = BoardSerializer(
             board,
             data=request.data,
@@ -76,7 +70,8 @@ class BoardDetailView(APIView):
 
         if serializer.is_valid():
             serializer.save()
-            return Response(BoardDetailSerializer(board).data)
+            board.refresh_from_db()
+            return Response(BoardUpdateSerializer(board).data)
 
         return Response(serializer.errors, status=400)
 
@@ -85,7 +80,6 @@ class BoardDetailView(APIView):
 
         if board.owner != request.user:
             return Response({"detail": "Only owner can delete"}, status=403)
-
         board.delete()
         return Response(status=204)
 
@@ -155,9 +149,7 @@ class TaskCreateView(APIView):
                 )
 
             task = serializer.save(created_by=request.user)
-
             return Response(TaskSerializer(task).data, status=201)
-
         return Response(serializer.errors, status=400)
 
 
@@ -210,13 +202,11 @@ class TaskDetailView(APIView):
 
     def delete(self, request, pk):
         task = self.get_object(pk)
-
         if (
             task.created_by != request.user
             and task.board.owner != request.user
         ):
             return Response({"detail": "Forbidden"}, status=403)
-
         task.delete()
         return Response(status=204)
 
@@ -240,9 +230,7 @@ class CommentListCreateView(APIView):
 
         if not self.check_access(task, request.user):
             return Response({"detail": "Forbidden"}, status=403)
-
         comments = task.comments.all().order_by("created_at")
-
         return Response(CommentSerializer(comments, many=True).data)
 
     def post(self, request, task_id):
@@ -250,7 +238,6 @@ class CommentListCreateView(APIView):
 
         if not self.check_access(task, request.user):
             return Response({"detail": "Forbidden"}, status=403)
-
         serializer = CommentSerializer(data=request.data)
 
         if serializer.is_valid():
@@ -258,9 +245,7 @@ class CommentListCreateView(APIView):
                 task=task,
                 author=request.user
             )
-
             return Response(CommentSerializer(comment).data, status=201)
-
         return Response(serializer.errors, status=400)
 
 
@@ -283,13 +268,11 @@ class CommentDetailView(APIView):
 
         if not self.check_access(task, request.user):
             return Response({"detail": "Forbidden"}, status=403)
-
         comment = get_object_or_404(
             Comment,
             id=comment_id,
             task=task
         )
-
         return Response(CommentSerializer(comment).data)
 
     def delete(self, request, task_id, comment_id):
@@ -297,15 +280,12 @@ class CommentDetailView(APIView):
 
         if not self.check_access(task, request.user):
             return Response({"detail": "Forbidden"}, status=403)
-
         comment = get_object_or_404(
             Comment,
             id=comment_id,
             task=task
         )
-
         if comment.author != request.user:
             return Response({"detail": "Forbidden"}, status=403)
-
         comment.delete()
         return Response(status=204)

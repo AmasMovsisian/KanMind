@@ -42,13 +42,11 @@ class RegistrationSerializer(serializers.ModelSerializer):
         Creates and returns a new user instance using Django's custom user manager.
         """
         validated_data.pop("repeated_password")
-
         user = User.objects.create_user(
             email=validated_data["email"],
             fullname=validated_data["fullname"],
             password=validated_data["password"],
         )
-
         return user
 
 

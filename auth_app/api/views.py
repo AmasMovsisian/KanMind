@@ -26,17 +26,18 @@ class RegistrationView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """
+        Registers a new user and returns authentication data.
+        """
         serializer = RegistrationSerializer(
             data=request.data
         )
-
         if serializer.is_valid():
             user = serializer.save()
 
             token, _ = Token.objects.get_or_create(
                 user=user
             )
-
             return Response(
                 {
                     "token": token.key,
@@ -46,7 +47,6 @@ class RegistrationView(APIView):
                 },
                 status=status.HTTP_201_CREATED
             )
-
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
@@ -64,30 +64,28 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """
+        Authenticates a user and returns an access token.
+        """
         serializer = LoginSerializer(
             data=request.data
         )
-
         if serializer.is_valid():
             email = serializer.validated_data["email"]
             password = serializer.validated_data["password"]
-
             user = authenticate(
                 request,
                 username=email,
                 password=password
             )
-
             if not user:
                 return Response(
                     {"error": "Invalid credentials"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
             token, _ = Token.objects.get_or_create(
                 user=user
             )
-
             return Response(
                 {
                     "token": token.key,
@@ -97,49 +95,10 @@ class LoginView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
-
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
-
-
-
-class EmailCheckView(APIView):
-    """
-    API endpoint for checking whether a user exists by email address.
-
-    Requires authentication and returns basic user information if found.
-    """
-
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        email = request.query_params.get("email")
-
-        if not email:
-            return Response(
-                {"error": "Email parameter required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            user = User.objects.get(email=email)
-
-            return Response(
-                {
-                    "id": user.id,
-                    "email": user.email,
-                    "fullname": user.fullname
-                },
-                status=status.HTTP_200_OK
-            )
-
-        except User.DoesNotExist:
-            return Response(
-                {"error": "Email not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
 
 
 
@@ -153,14 +112,15 @@ class EmailCheckView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        """
+        Validates an email address and returns matching user information.
+        """
         email = request.query_params.get("email")
-
         if not email:
             return Response(
                 {"detail": "Email query parameter is required"},
                 status=400
             )
-
         try:
             validate_email(email)
         except Exception:
@@ -168,15 +128,12 @@ class EmailCheckView(APIView):
                 {"detail": "Invalid email format"},
                 status=400
             )
-
         user = User.objects.filter(email=email).first()
-
         if not user:
             return Response(
                 {"detail": "Email not found"},
                 status=404
             )
-
         return Response({
             "id": user.id,
             "email": user.email,

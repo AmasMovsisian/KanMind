@@ -11,6 +11,9 @@ class IsAuthenticatedOr401(BasePermission):
     """
 
     def has_permission(self, request, view):
+        """
+        Checks whether the user is authenticated.
+        """
         return request.user and request.user.is_authenticated
 
 
@@ -22,8 +25,6 @@ class IsBoardMember(BasePermission):
     A user is considered a board member if they are either:
     - The owner of the board
     - Included in the board's members list
-
-    Supports both object-level and request-level validation.
     """
 
     def has_object_permission(self, request, view, obj):
@@ -36,17 +37,19 @@ class IsBoardMember(BasePermission):
         """
         Validates whether the requesting user has access based on the provided board ID.
 
-        If a board ID is included in the request data, the user must be either
-        the owner or a member of that board.
+        If a board ID is provided, access is checked against board ownership or membership.
         """
         board_id = request.data.get("board")
         user = request.user
+
         if not board_id:
             return True
+
         try:
             board = Board.objects.get(id=board_id)
         except Board.DoesNotExist:
             return False
+
         return board.owner == user or user in board.members.all()
 
 
@@ -57,4 +60,7 @@ class IsBoardOwner(BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
+        """
+        Checks whether the requesting user is the owner of the object.
+        """
         return obj.owner == request.user
