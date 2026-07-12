@@ -4,8 +4,6 @@ KanMind Backend is a REST API backend for a Kanban-style project management appl
 
 ---
 
----
-
 ## Frontend
 
 The Kanmind frontend application provides the user interface for managing boards, tasks, users, and project workflows.
